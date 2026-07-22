@@ -4,7 +4,25 @@ mod utils;
 
 use crate::config::Config;
 use crate::message_bus::MessageBus;
+use tracing::info;
 use tracing_subscriber::EnvFilter;
+
+#[cfg(unix)]
+async fn shutdown_signal() -> std::io::Result<()> {
+    use tokio::signal::unix::{signal, SignalKind};
+
+    let mut terminate = signal(SignalKind::terminate())?;
+    tokio::select! {
+        result = tokio::signal::ctrl_c() => result?,
+        _ = terminate.recv() => {},
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+async fn shutdown_signal() -> std::io::Result<()> {
+    tokio::signal::ctrl_c().await
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,6 +32,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config::new();
     let message_bus = MessageBus::new(config);
-    message_bus.run().await?;
+    tokio::select! {
+        result = message_bus.run() => result?,
+        result = shutdown_signal() => {
+            result?;
+            info!("Shutdown signal received");
+        },
+    }
     Ok(())
 }

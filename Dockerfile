@@ -13,12 +13,16 @@ RUN strip target/release/ovos_messagebus
 
 # use a plain alpine image, the alpine version needs to match the builder
 FROM alpine:3.19
+ARG IMAGE_VERSION
+ARG VCS_REF
 LABEL org.opencontainers.image.title="OpenVoiceOS Rust message bus image"
 LABEL org.opencontainers.image.description="Message bus service, the nervous system of OpenVoiceOS (Rust implementation)"
-LABEL org.opencontainers.image.documentation="https://github.com/OscillateLabsLLC/ovos-rust-messagebus"
-LABEL org.opencontainers.image.source="https://github.com/OscillateLabsLLC/ovos-rust-messagebus"
-LABEL org.opencontainers.image.vendor="Oscillate Labs, LLC"
+LABEL org.opencontainers.image.documentation="https://github.com/thalovant/ovos-rust-messagebus"
+LABEL org.opencontainers.image.source="https://github.com/thalovant/ovos-rust-messagebus"
+LABEL org.opencontainers.image.vendor="Thalovant"
 LABEL org.opencontainers.image.license="Apache-2.0"
+LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
+LABEL org.opencontainers.image.revision="${VCS_REF}"
 # if needed, install additional dependencies here
 RUN apk add --no-cache libgcc netcat-openbsd
 # copy the binary into the final image
