@@ -5,7 +5,9 @@ use tokio::net::TcpSocket;
 use tokio::sync::broadcast::{self, error::RecvError, error::TryRecvError, Receiver};
 use tokio_tungstenite::accept_async_with_config;
 use tokio_tungstenite::tungstenite::{
-    error::CapacityError, protocol::WebSocketConfig, Error as WsError, Message, Utf8Bytes,
+    error::{CapacityError, ProtocolError},
+    protocol::WebSocketConfig,
+    Error as WsError, Message, Utf8Bytes,
 };
 use tracing::{debug, error, info, trace, warn};
 
@@ -79,7 +81,11 @@ impl MessageBus {
         // Send the OVOS "connected" greeting expected by all bus clients
         let greeting = r#"{"type": "connected", "data": {}, "context": {"session": {"session_id": "default"}}}"#;
         if let Err(e) = write.send(Message::Text(greeting.into())).await {
-            error!("Failed to send greeting: {}", e);
+            if is_clean_close_error(&e) {
+                debug!("Connection closed before the greeting was sent");
+            } else {
+                error!("Failed to send greeting: {}", e);
+            }
             return Ok(());
         }
 
@@ -101,6 +107,10 @@ impl MessageBus {
                             "Message too large: {} bytes exceeds {} byte limit (max_msg_size: {} MB)",
                             size, max_size, read_bus.config.max_msg_size
                         );
+                        break;
+                    }
+                    Err(e) if is_clean_close_error(&e) => {
+                        debug!("WebSocket connection closed");
                         break;
                     }
                     Err(e) => {
@@ -132,6 +142,10 @@ impl MessageBus {
                     Ok(BatchState::Closed) => {
                         break;
                     }
+                    Err(e) if is_clean_close_error(&e) => {
+                        debug!("WebSocket connection closed while sending");
+                        break;
+                    }
                     Err(e) => {
                         error!("Error sending message: {}", e);
                         break;
@@ -160,6 +174,15 @@ impl MessageBus {
             .max_message_size(Some(max_message_size))
             .max_frame_size(Some(max_message_size))
     }
+}
+
+fn is_clean_close_error(error: &WsError) -> bool {
+    matches!(
+        error,
+        WsError::ConnectionClosed
+            | WsError::AlreadyClosed
+            | WsError::Protocol(ProtocolError::SendAfterClosing)
+    )
 }
 
 enum BatchState {
@@ -209,4 +232,18 @@ where
 
     write.flush().await?;
     Ok(close_state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clean_close_errors_are_not_transport_failures() {
+        assert!(is_clean_close_error(&WsError::ConnectionClosed));
+        assert!(is_clean_close_error(&WsError::AlreadyClosed));
+        assert!(is_clean_close_error(&WsError::Protocol(
+            ProtocolError::SendAfterClosing,
+        )));
+    }
 }
