@@ -21,6 +21,11 @@ LABEL org.opencontainers.image.documentation="https://github.com/thalovant/ovos-
 LABEL org.opencontainers.image.source="https://github.com/thalovant/ovos-rust-messagebus"
 LABEL org.opencontainers.image.vendor="Thalovant"
 LABEL org.opencontainers.image.license="Apache-2.0"
+# Fail the build rather than ship blank provenance. An image whose version and
+# revision labels are empty cannot be traced back to what produced it, and the
+# failure is silent at build time and only noticed when somebody needs it.
+RUN test -n "${IMAGE_VERSION}" || (echo "IMAGE_VERSION build arg is required: --build-arg IMAGE_VERSION=<version>" >&2; exit 1); \
+    test -n "${VCS_REF}" || (echo "VCS_REF build arg is required: --build-arg VCS_REF=\$(git rev-parse HEAD)" >&2; exit 1)
 LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
 LABEL org.opencontainers.image.revision="${VCS_REF}"
 # if needed, install additional dependencies here

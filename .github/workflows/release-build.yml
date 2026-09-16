@@ -113,6 +113,12 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          # Without these the OCI version and revision labels are published
+          # empty, and a released image cannot be traced back to what produced
+          # it. The Dockerfile now refuses to build without them.
+          build-args: |
+            IMAGE_VERSION=${{ github.event.release.tag_name || github.sha }}
+            VCS_REF=${{ github.sha }}
           tags: |
             ghcr.io/${{ steps.lowercase_repo.outputs.REPO_LOWERCASE }}:latest
             ghcr.io/${{ steps.lowercase_repo.outputs.REPO_LOWERCASE }}:${{ github.sha }}
