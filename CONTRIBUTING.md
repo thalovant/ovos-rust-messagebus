@@ -145,7 +145,9 @@ Build and test the Docker image:
 
 ```bash
 # Build image
-docker build -t ovos-rust-messagebus .
+docker build -t ovos-rust-messagebus \
+  --build-arg IMAGE_VERSION="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" \
+  --build-arg VCS_REF="$(git rev-parse HEAD)" .
 
 # Run container
 docker run -p 8181:8181 -e OVOS_BUS_HOST=0.0.0.0 ovos-rust-messagebus

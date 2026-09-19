@@ -107,7 +107,9 @@ This project includes a Dockerfile for creating a minimal container with the OVO
 To build the Docker image, run the following command in the project root:
 
 ```sh
-docker build -t ovos-rust-messagebus .
+docker build -t ovos-rust-messagebus \
+  --build-arg IMAGE_VERSION="$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" \
+  --build-arg VCS_REF="$(git rev-parse HEAD)" .
 ```
 
 ### Running the Docker Container
